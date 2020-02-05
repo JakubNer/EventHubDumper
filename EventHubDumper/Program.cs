@@ -25,6 +25,9 @@ namespace EventHubDumper
 
             [Option("storage-container-name", Required = true, HelpText = "Required storage container name.  Get this from Azure Portal.")]
             public string StorageContainerName { get; set; }
+
+            [Option("consumer-group", Required = false, HelpText = "Optional consumer group.  Get this from Azure Portal.")]
+            public string ConsumerGroup { get; set; }
         }
 
         static void Main(string[] args)
@@ -35,7 +38,8 @@ namespace EventHubDumper
                        Run(o.EventHubConnectionString, 
                            o.EventHubName,
                            o.StorageConnectionString,
-                           o.StorageContainerName).GetAwaiter().GetResult();
+                           o.StorageContainerName,
+                           o.ConsumerGroup).GetAwaiter().GetResult();
                        return 0;
                    }, (errs) => HandleParseError(errs));
         }
@@ -51,19 +55,24 @@ namespace EventHubDumper
             return result;
         }
 
-        static async Task<int> Run(string eventHubConnectionString, string eventHubName, string storageConnectionString, string storageContainerName)
+        static async Task<int> Run(string eventHubConnectionString, string eventHubName, string storageConnectionString, string storageContainerName, string consumerGroup)
         {
             Console.WriteLine("Running...");
             Console.WriteLine($"Connecting to {eventHubConnectionString} with {storageConnectionString}");
+            Console.WriteLine($"Consumer group is:  {consumerGroup}");
             EventProcessorHost eventProcessorHost = new EventProcessorHost(
                 eventHubName,
-                PartitionReceiver.DefaultConsumerGroupName, 
+                consumerGroup == null ? PartitionReceiver.DefaultConsumerGroupName : consumerGroup, 
                 eventHubConnectionString, 
                 storageConnectionString,
                 storageContainerName);
 
             // Registers the Event Processor Host and starts receiving messages
-            await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>();
+            await eventProcessorHost.RegisterEventProcessorAsync<SimpleEventProcessor>(
+                new EventProcessorOptions 
+                { 
+                    InitialOffsetProvider = partitionId => EventPosition.FromEnqueuedTime(DateTime.UtcNow) 
+                });
 
             Console.WriteLine("Receiving. Press ENTER to stop worker.");
             Console.ReadLine();

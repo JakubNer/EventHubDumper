@@ -1,0 +1,4 @@
+.vs/
+EventHubDumper/bin/Debug/netcoreapp3.1/CommandLine.dll
+EventHubDumper/bin/
+EventHubDumper/obj/
